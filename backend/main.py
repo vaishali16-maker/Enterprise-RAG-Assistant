@@ -44,6 +44,10 @@ UPLOAD_RATE_WINDOW = int(os.environ.get("UPLOAD_RATE_WINDOW_SECONDS", "3600"))
 QUESTION_RATE_LIMIT = int(os.environ.get("QUESTION_RATE_LIMIT", "30"))
 QUESTION_RATE_WINDOW = int(os.environ.get("QUESTION_RATE_WINDOW_SECONDS", "60"))
 app = FastAPI(title="Enterprise Knowledge Assistant API")
+app = FastAPI(title="Enterprise Knowledge Assistant API")
+# Extra allowed browser origins (for example the deployed frontend URL),
+# supplied as a comma-separated list in the ALLOWED_ORIGINS environment variable.
+_extra_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -51,8 +55,7 @@ app.add_middleware(
         "http://127.0.0.1:5500",
         "http://127.0.0.1:8000",
         "http://localhost:3000",
-        "https://ai-rag-chatbot-comw4kc59-vaishh1.vercel.app",
-    ],
+    ] + _extra_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
