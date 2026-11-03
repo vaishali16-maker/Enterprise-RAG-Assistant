@@ -1,0 +1,26 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets - never commit
+.env
+.env.*
+!.env.example
+*.pem
+get_token.py
+
+# Frontend
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Uploads and logs
+backend/ingestion/uploads/
+*.log
+
+# OS and editor
+.DS_Store
+Thumbs.db

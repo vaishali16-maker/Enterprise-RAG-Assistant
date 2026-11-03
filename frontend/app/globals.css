@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --cream: #fdf8f3;
+  --cream-soft: #faf3e8;
+  --brown: #6f4523;
+  --brown-deep: #3d2817;
+  --brown-muted: #5e452f;
+  --brown-subtle: #6b5744;
+  --border-soft: #e8d3b8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+a,
+input,
+textarea,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(button, a, input, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--brown);
+  outline-offset: 2px;
+}
+
+.chat-action,
+.chat-icon-action {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 8px;
+  padding: 5px 8px;
+  color: var(--brown-subtle);
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.chat-action:hover,
+.chat-icon-action:hover,
+.suggestion-chip:hover {
+  background: #f3e5d3;
+  color: var(--brown-deep);
+}
+
+.chat-action:disabled,
+.chat-icon-action:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.chat-icon-action.selected {
+  border: 1px solid #9a7149;
+  background: #ead5bb;
+  color: #3d2817;
+}
+
+.suggestion-chip {
+  border: 1px solid #b58b61;
+  border-radius: 999px;
+  padding: 5px 10px;
+  color: #4a3829;
+  cursor: pointer;
+  font-size: 11px;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.stream-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  vertical-align: text-bottom;
+  background: var(--brown);
+  animation: chat-cursor-blink 800ms steps(2, start) infinite;
+}
+
+.chat-skeleton {
+  background: linear-gradient(90deg, #f1e4d2 25%, #faf3e8 50%, #f1e4d2 75%);
+  background-size: 200% 100%;
+  animation: chat-skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes chat-cursor-blink {
+  to { visibility: hidden; }
+}
+
+@keyframes chat-skeleton-shimmer {
+  to { background-position-x: -200%; }
+}
+
+.mobile-drawer-backdrop { display: none; }
+.mobile-sidebar-trigger { display: none; }
+
+@media (max-width: 899px) {
+  .mobile-sidebar-trigger { display: inline-flex; }
+  .app-sidebar,
+  .app-knowledge {
+    position: fixed;
+    z-index: 80;
+    top: 0;
+    bottom: 0;
+    height: auto;
+    margin: 0;
+    border-radius: 0 1.5rem 1.5rem 0;
+    transform: translateX(-110%);
+    transition: transform 350ms ease;
+  }
+  .app-knowledge {
+    right: 0;
+    left: auto;
+    margin: 0;
+    border-radius: 1.5rem 0 0 1.5rem;
+    transform: translateX(110%);
+  }
+  .app-sidebar.mobile-open,
+  .app-knowledge.mobile-open { transform: translateX(0); }
+  .mobile-drawer-backdrop.is-open {
+    display: block;
+    position: fixed;
+    z-index: 79;
+    inset: 0;
+    background: rgb(32 22 14 / 35%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

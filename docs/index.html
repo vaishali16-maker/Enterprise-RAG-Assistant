@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stacks — Document Assistant</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper: #F6F5F1;
+    --paper-raised: #FFFFFF;
+    --ink: #1B1B18;
+    --ink-soft: #625F58;
+    --line: #E3E0D7;
+    --accent: #2F4858;
+    --accent-soft: #E9EEF0;
+    --brass: #B8862E;
+  }
+
+  * { font-family: 'Inter', -apple-system, sans-serif; }
+  .font-serif { font-family: 'Source Serif 4', Georgia, serif; }
+  .font-mono { font-family: 'IBM Plex Mono', monospace; }
+
+  body { background: var(--paper); color: var(--ink); }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: #D4D0C4; border-radius: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  .msg-in { animation: msgIn 0.25s ease-out; }
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .stamp {
+    background-image: radial-gradient(circle, var(--line) 1px, transparent 1px);
+    background-size: 10px 10px;
+  }
+
+  .bar-track { background: var(--accent-soft); }
+  .bar-fill { background: var(--accent); }
+
+  textarea:focus { outline: none; box-shadow: none; }
+
+  .card-tab::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent);
+    border-radius: 3px 0 0 3px;
+  }
+</style>
+</head>
+
+<body class="text-[15px]">
+<div class="flex h-screen">
+
+  <!--sidebar -->
+  <aside class="w-72 flex flex-col border-r" style="border-color: var(--line); background: var(--paper);">
+    <!-- Mark -->
+    <div class="px-5 pt-6 pb-5">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-md flex items-center justify-center font-mono text-xs font-medium"
+             style="background: var(--ink); color: var(--paper);">
+          §
+        </div>
+        <div>
+          <h1 class="font-serif text-[17px] font-semibold leading-none">Stacks</h1>
+          <p class="text-[11px] font-mono uppercase tracking-wider mt-1" style="color: var(--ink-soft);">
+            document assistant
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="px-5">
+      <div class="h-px" style="background: var(--line);"></div>
+    </div>
+
+    <!-- New Chat -->
+    <div class="px-5 pt-4">
+      <button
+        onclick="newChat()"
+        class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-md text-[13px] font-medium border transition"
+        style="border-color: var(--line); background: var(--paper-raised); color: var(--ink);"
+        onmouseover="this.style.borderColor='var(--accent)'"
+        onmouseout="this.style.borderColor='var(--line)'"
+      >
+        <span class="font-mono">+</span>
+        <span>New conversation</span>
+      </button>
+    </div>
+
+    <!-- Catalog entry -->
+    <div class="mt-8 px-5">
+      <p class="text-[10px] font-mono uppercase tracking-widest mb-3" style="color: var(--ink-soft);">
+        Catalog · 001
+      </p>
+
+      <div id="sidebarDocument"
+           class="text-[13px] leading-5 rounded-md border px-3 py-3 relative"
+           style="border-color: var(--line); background: var(--paper-raised); color: var(--ink-soft);">
+        No document indexed yet
+      </div>
+    </div>
+
+    <!-- Bottom -->
+    <div class="mt-auto px-5 pb-6 pt-4 border-t" style="border-color: var(--line);">
+      <p class="text-[11px] font-mono" style="color: var(--ink-soft);">
+        retrieval-augmented · local model
+      </p>
+    </div>
+
+  </aside>
+
+
+  <!-- ================= MAIN ================= -->
+  <main class="flex-1 flex flex-col min-w-0">
+
+    <header class="h-14 flex items-center px-8 border-b" style="border-color: var(--line);">
+      <h2 class="text-[13px] font-mono uppercase tracking-wider" style="color: var(--ink-soft);">
+        Reading room
+      </h2>
+    </header>
+
+    <!-- ================= CHAT AREA ================= -->
+    <div id="chatArea" class="flex-1 overflow-y-auto stamp">
+
+      <div id="welcome" class="h-full flex flex-col items-center justify-center px-6">
+        <div class="w-16 h-16 rounded-lg flex items-center justify-center font-mono text-2xl mb-6"
+             style="background: var(--paper-raised); border: 1px solid var(--line); color: var(--accent);">
+          §
+        </div>
+        <h1 class="font-serif text-[28px] font-semibold mb-2 text-center max-w-lg leading-snug">
+          Ask the document something.
+        </h1>
+        <p class="text-[14px] text-center max-w-sm" style="color: var(--ink-soft);">
+          Upload a PDF and every answer below will be traced back to the exact
+          passage it came from.
+        </p>
+      </div>
+
+    </div>
+
+
+    <!-- ================= COMPOSER ================= -->
+    <div class="border-t" style="border-color: var(--line); background: var(--paper);">
+
+      <div class="max-w-3xl mx-auto px-4 py-4">
+
+        <div id="uploadStatus" class="hidden mb-3 text-[13px] font-mono"></div>
+
+        <div id="suggestedQuestions" class="hidden mb-3 flex flex-wrap gap-2"></div>
+
+        <div id="filePreview" class="hidden mb-2">
+          <div class="inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13px] font-mono border"
+               style="background: var(--paper-raised); border-color: var(--line);">
+            <span>▤</span>
+            <span id="fileName" class="max-w-xs truncate"></span>
+            <button onclick="removeFile()" class="hover:text-red-600" style="color: var(--ink-soft);">×</button>
+          </div>
+        </div>
+
+        <div class="relative rounded-xl border shadow-sm transition"
+             style="border-color: var(--line); background: var(--paper-raised);"
+             id="composerBox">
+
+          <textarea
+            id="question"
+            rows="1"
+            placeholder="Ask anything about your document..."
+            class="w-full resize-none border-0 rounded-xl px-4 pt-4 pb-14 text-[14px] bg-transparent"
+            oninput="autoResize(this)"
+            onkeydown="handleKey(event)"
+            onfocus="document.getElementById('composerBox').style.borderColor='var(--accent)'"
+            onblur="document.getElementById('composerBox').style.borderColor='var(--line)'"
+          ></textarea>
+
+          <div class="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+            <div>
+              <input type="file" id="pdfFile" accept=".pdf,application/pdf" class="hidden" onchange="fileSelected()">
+              <button
+                onclick="document.getElementById('pdfFile').click()"
+                class="w-9 h-9 rounded-md flex items-center justify-center transition"
+                style="color: var(--ink-soft);"
+                onmouseover="this.style.background='var(--accent-soft)'"
+                onmouseout="this.style.background='transparent'"
+                title="Upload PDF"
+              >
+                ▤
+              </button>
+            </div>
+
+            <button
+              id="sendButton"
+              onclick="askQuestion()"
+              class="w-9 h-9 rounded-md flex items-center justify-center text-white transition disabled:cursor-not-allowed"
+              style="background: var(--ink);"
+            >
+              ↑
+            </button>
+          </div>
+
+        </div>
+
+        <p class="text-center text-[11px] font-mono mt-2" style="color: var(--ink-soft);">
+          answers are generated — verify against the cited source
+        </p>
+
+      </div>
+
+    </div>
+
+  </main>
+
+</div>
+
+
+<script>
+  const API_URL = "https://ai-rag-chatbot-wxrb.onrender.com";
+  let selectedFile = null;
+
+  function fileSelected() {
+    const input = document.getElementById("pdfFile");
+    if (!input.files.length) return;
+    selectedFile = input.files[0];
+    document.getElementById("fileName").textContent = selectedFile.name;
+    document.getElementById("filePreview").classList.remove("hidden");
+  }
+
+  function removeFile() {
+    selectedFile = null;
+    document.getElementById("pdfFile").value = "";
+    document.getElementById("filePreview").classList.add("hidden");
+  }
+
+  async function uploadPDF() {
+    if (!selectedFile) return;
+    const status = document.getElementById("uploadStatus");
+    status.className = "mb-3 text-[13px] font-mono";
+    status.style.color = "var(--ink-soft)";
+    status.textContent = "indexing document...";
+    status.classList.remove("hidden");
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    try {
+      const response = await fetch(`${API_URL}/upload`, { method: "POST", body: formData });
+      if (!response.ok) throw new Error("Upload failed");
+      const data = await response.json();
+      status.style.color = "var(--accent)";
+      status.textContent = `indexed — ${data.chunks} chunks`;
+      document.getElementById("sidebarDocument").textContent = data.filename;
+      document.getElementById("sidebarDocument").style.color = "var(--ink)";
+      renderSuggestedQuestions(data.suggested_questions || []);
+    } catch (error) {
+      status.style.color = "#B3413B";
+      status.textContent = "upload failed — try again";
+      console.error(error);
+    }
+  }
+
+  async function askQuestion() {
+    const input = document.getElementById("question");
+    const question = input.value.trim();
+    if (!question) return;
+    if (selectedFile) {
+      await uploadPDF();
+      removeFile();
+    }
+    const welcome = document.getElementById("welcome");
+    if (welcome) welcome.remove();
+    addUserMessage(question);
+    input.value = "";
+    input.style.height = "auto";
+    const button = document.getElementById("sendButton");
+    button.disabled = true;
+    button.style.opacity = "0.4";
+    const loadingId = addLoadingMessage();
+    try {
+      const response = await fetch(`${API_URL}/ask`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: question })
+      });
+      if (!response.ok) throw new Error("Question request failed");
+      const data = await response.json();
+      document.getElementById(loadingId)?.remove();
+      addAIMessage(data.answer, data.sources);
+    } catch (error) {
+      document.getElementById(loadingId)?.remove();
+      addAIMessage("Something went wrong reaching the backend. Confirm the server is running.", []);
+      console.error(error);
+    } finally {
+      button.disabled = false;
+      button.style.opacity = "1";
+    }
+  }
+
+  function addUserMessage(text) {
+    const chat = document.getElementById("chatArea");
+    const wrapper = document.createElement("div");
+    wrapper.className = "max-w-3xl mx-auto px-4 pt-6 pb-2 msg-in";
+    wrapper.innerHTML = `
+      <div class="flex justify-end">
+        <div class="max-w-xl rounded-xl px-4 py-3 text-[14px] leading-6"
+             style="background: var(--ink); color: var(--paper);">
+          ${escapeHTML(text)}
+        </div>
+      </div>
+    `;
+    chat.appendChild(wrapper);
+    scrollToBottom();
+  }
+
+  function addAIMessage(answer, sources) {
+    const chat = document.getElementById("chatArea");
+    const wrapper = document.createElement("div");
+    wrapper.className = "max-w-3xl mx-auto px-4 pt-3 pb-8 msg-in";
+    const uniqueSources = [];
+    const seen = new Set();
+    if (Array.isArray(sources)) {
+      sources.forEach(source => {
+        const content = (source?.content || "").trim();
+        if (!content || seen.has(content)) return;
+        seen.add(content);
+        uniqueSources.push(source);
+      });
+    }
+    let sourcesHTML = "";
+    if (uniqueSources.length > 0) {
+      sourcesHTML = `
+        <div class="mt-5">
+          <p class="text-[10px] font-mono uppercase tracking-widest mb-3" style="color: var(--ink-soft);">
+            Cited passages
+          </p>
+          <div class="space-y-2">
+            ${uniqueSources.map((source, index) => {
+              const sim = typeof source.similarity === "number" ? source.similarity : null;
+              const pct = sim !== null ? Math.round(sim * 100) : null;
+              const label = source.source_file || `chunk ${index + 1}`;
+              const chunkIdx = (source.chunk_index !== undefined && source.chunk_index !== null) ? source.chunk_index : index;
+              return `
+                <div class="relative rounded-md border pl-4 pr-4 py-3 overflow-hidden card-tab"
+                     style="background: var(--paper-raised); border-color: var(--line);">
+                  <div class="flex items-center justify-between mb-2">
+                    <p class="text-[11px] font-mono truncate max-w-[60%]" style="color: var(--ink-soft);">
+                      ${escapeHTML(label)} · chunk ${escapeHTML(String(chunkIdx))}
+                    </p>
+                    ${pct !== null ? `
+                      <div class="flex items-center gap-2 flex-shrink-0">
+                        <div class="w-12 h-1 rounded-full bar-track overflow-hidden">
+                          <div class="h-full bar-fill" style="width:${pct}%;"></div>
+                        </div>
+                        <span class="text-[10px] font-mono" style="color: var(--ink-soft);">${pct}%</span>
+                      </div>
+                    ` : ""}
+                  </div>
+                  <p class="text-[13px] leading-6" style="color: var(--ink);">
+                    ${escapeHTML(source.content || "")}
+                  </p>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    wrapper.innerHTML = `
+      <div class="flex gap-3">
+        <div class="flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-mono"
+             style="background: var(--accent-soft); color: var(--accent);">
+          §
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-[14px] leading-7 whitespace-pre-wrap" style="color: var(--ink);">
+            ${escapeHTML(answer)}
+          </div>
+          ${sourcesHTML}
+        </div>
+      </div>
+    `;
+
+    chat.appendChild(wrapper);
+    scrollToBottom();
+  }
+
+  function addLoadingMessage() {
+    const chat = document.getElementById("chatArea");
+    const id = "loading-" + Date.now();
+    const wrapper = document.createElement("div");
+    wrapper.id = id;
+    wrapper.className = "max-w-3xl mx-auto px-4 py-6";
+    wrapper.innerHTML = `
+      <div class="flex gap-3">
+        <div class="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-mono"
+             style="background: var(--accent-soft); color: var(--accent);">
+          §
+        </div>
+        <div class="flex items-center gap-1 pt-2">
+          <span class="w-1.5 h-1.5 rounded-full animate-bounce" style="background: var(--ink-soft);"></span>
+          <span class="w-1.5 h-1.5 rounded-full animate-bounce" style="background: var(--ink-soft); animation-delay:0.15s;"></span>
+          <span class="w-1.5 h-1.5 rounded-full animate-bounce" style="background: var(--ink-soft); animation-delay:0.3s;"></span>
+        </div>
+      </div>
+    `;
+
+    chat.appendChild(wrapper);
+    scrollToBottom();
+    return id;
+  }
+
+  function renderSuggestedQuestions(pairs) {
+    const container = document.getElementById("suggestedQuestions");
+    container.innerHTML = "";
+    if (!pairs.length) {
+      container.classList.add("hidden");
+      return;
+    }
+    const label = document.createElement("p");
+    label.className = "w-full text-[10px] font-mono uppercase tracking-widest mb-1";
+    label.style.color = "var(--ink-soft)";
+    label.textContent = "Try asking";
+    container.appendChild(label);
+    pairs.forEach(pair => {
+      const chip = document.createElement("button");
+      chip.className = "text-[12px] px-3 py-1.5 rounded-full border transition";
+      chip.style.borderColor = "var(--line)";
+      chip.style.background = "var(--paper-raised)";
+      chip.style.color = "var(--ink)";
+      chip.textContent = pair.question;
+      chip.onmouseover = () => chip.style.borderColor = "var(--accent)";
+      chip.onmouseout = () => chip.style.borderColor = "var(--line)";
+      chip.onclick = () => {
+        document.getElementById("question").value = pair.question;
+        askQuestion();
+      };
+      container.appendChild(chip);
+    });
+    container.classList.remove("hidden");
+  }
+
+  function newChat() {
+    const chat = document.getElementById("chatArea");
+    chat.innerHTML = `
+      <div id="welcome" class="h-full flex flex-col items-center justify-center px-6">
+        <div class="w-16 h-16 rounded-lg flex items-center justify-center font-mono text-2xl mb-6"
+             style="background: var(--paper-raised); border: 1px solid var(--line); color: var(--accent);">
+          §
+        </div>
+        <h1 class="font-serif text-[28px] font-semibold mb-2 text-center max-w-lg leading-snug">
+          Ask the document something.
+        </h1>
+        <p class="text-[14px] text-center max-w-sm" style="color: var(--ink-soft);">
+          Upload a PDF and every answer below will be traced back to the exact
+          passage it came from.
+        </p>
+      </div>
+    `;
+
+    document.getElementById("sidebarDocument").textContent = "No document indexed yet";
+    document.getElementById("sidebarDocument").style.color = "var(--ink-soft)";
+    document.getElementById("uploadStatus").classList.add("hidden");
+    document.getElementById("uploadStatus").textContent = "";
+    document.getElementById("suggestedQuestions").classList.add("hidden");
+    document.getElementById("suggestedQuestions").innerHTML = "";
+    removeFile();
+  }
+
+  function handleKey(event) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      askQuestion();
+    }
+  }
+
+  function autoResize(element) {
+    element.style.height = "auto";
+    element.style.height = Math.min(element.scrollHeight, 180) + "px";
+  }
+
+  function scrollToBottom() {
+    const chat = document.getElementById("chatArea");
+    chat.scrollTop = chat.scrollHeight;
+  }
+  
+  function escapeHTML(text) {
+    const div = document.createElement("div");
+    div.textContent = text ?? "";
+    return div.innerHTML;
+  }
+  document.getElementById("pdfFile").addEventListener("change", function () {
+    fileSelected();
+  });
+
+</script>
+</body>
+</html>
