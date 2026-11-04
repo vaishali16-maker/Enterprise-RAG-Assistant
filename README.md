@@ -1,96 +1,166 @@
-# AI RAG Chatbot
+# Enterprise RAG Assistant
 
-A Retrieval-Augmented Generation (RAG) chatbot built for sales teams — upload 
-product spec sheets, pricing docs, or policy PDFs and get grounded, cited answers 
-to pricing, feature, and policy questions instead of digging through documents manually.
+A role-based knowledge assistant for companies. Staff upload internal PDFs, and employees ask questions in plain English. Every answer is built **only from documents the signed-in user is allowed to see**, and cites the exact document and page it came from. When the documents don't contain a good answer, the assistant says so instead of guessing.
 
-**Live demo:** https://vaishali16-maker.github.io/AI-RAG-chatbot/ 
-**Backend API:** https://ai-rag-chatbot-wxrb.onrender.com/
-                
+**Live demo:** https://enterprise-rag-assistant-xi.vercel.app
 
-## How it works
-1. Upload a PDF — text is extracted, cleaned, and split into overlapping chunks
-2. Each chunk is embedded using Cohere's embeddings API and stored in Supabase (pgvector)
-3. On a question, the query is embedded and matched against stored chunks via vector similarity search
-4. Matched chunks are passed as context to an LLM (via Groq) to generate a grounded answer
-5. Answers include the cited source chunk(s) and similarity score, so users can verify against the original text
+> The backend runs on a free Render instance, so the first request after a period of inactivity can take about a minute while it wakes up.
 
-### Agentic Mode (`/ask/agent`)
-A second endpoint runs the same retrieval pipeline through a LangGraph-based
-agent instead of the direct flow above:
-1. A router node (LLM call) classifies the question as needing document
-   retrieval or a direct reply — greetings and general questions skip
-   retrieval entirely
-2. If retrieval is needed, a custom LangChain retriever wraps the existing
-   Supabase `match_documents` RPC to fetch relevant chunks
-3. The LLM generates a grounded answer using LangChain's `ChatGroq`, with the
-   same "don't guess" grounding rules as the standard `/ask` endpoint
+![Cited answer with page-level sources](docs/screenshots/01-cited-answer.png)
 
-### Tested Capabilities
-Beyond basic Q&A, this system has been validated against harder query types:
-- **Multi-fact reasoning**: correctly computes derived values (e.g. discounted 
-  per-seat pricing) by combining multiple facts from the document
-- **Cross-section synthesis**: connects related information from different 
-  parts of a document (e.g. security certification + deployment options)
-- **Hallucination resistance**: correctly declines to answer when information 
-  isn't present in the document, rather than guessing
-- **Policy edge-case reasoning**: compares dates/numbers against stated rules 
-  (e.g. refund eligibility based on cancellation timing)
+## Why this project
 
-  ### Limitations & Next Steps
-- Currently single-PDF per session — multi-document support planned
-- No conversation memory yet — each question is independent
-- Cold start (~50s) on Render free tier for the first request after inactivity
-- Re-uploading the same file now correctly replaces old chunks instead of 
-  duplicating them (fixed after discovering duplicate chunks were degrading 
-  retrieval quality during testing)
+Company knowledge sits in PDFs, and generic chatbots can invent answers or leak confidential content. This project focuses on the two things that matter in an enterprise setting:
 
-## Stack
-- **Backend:** FastAPI (Python)
-- **Embeddings:** Cohere (`embed-english-light-v3.0`), via `langchain-cohere`
-- **Vector store:** Supabase (pgvector)
-- **LLM:** Groq (`openai/gpt-oss-20b`), via `langchain-groq`
-- **Agent orchestration:** LangGraph (conditional routing) + a custom LangChain retriever
-- **Frontend:** Static HTML/JS, hosted on GitHub Pages
-- **Deployment:** Render (backend, free tier)
+1. **Trust**: every answer shows its sources, and weak matches are refused.
+2. **Access control**: HR-only and manager-only documents never reach the language model for users who shouldn't see them.
 
-## Notes
-- The backend runs on Render's free tier, which spins down after inactivity — the first request after idle time may take up to ~50 seconds to respond.
-- Retrieval uses cosine similarity; the percentage shown next to each cited passage is the raw similarity score, not a fixed 0-100 confidence scale.
+## Features
 
-## Local setup
+- **Role-based access** for four roles (admin, HR, manager, employee), enforced on the server during retrieval, not only hidden in the interface
+- **Cited answers** with inline `[1] [2]` chips, document names and page numbers
+- **Low-confidence refusal**: if no strong match exists, the assistant declines instead of guessing
+- **Hybrid retrieval**: vector search (pgvector) combined with keyword search and re-scoring
+- **Follow-up suggestions** generated from the stored passages and checked against the user's accessible documents, so every chip is answerable
+- **Semantic cache scoped by tenant and role**, so a cached answer is never served to a user of a different role
+- **Document management**: upload, delete and change access, with permission rules per role
+- **Audit log** of uploads, deletions and access changes
+- **Rate limiting** on uploads and questions
+- **Multi-tenant data model** (every record belongs to a tenant)
+- **Experimental**: entity and relation extraction per document (graph view is a work in progress)
 
-The Next.js app uses the local FastAPI backend at `http://127.0.0.1:8000` by
-default. Keep the required service credentials in `backend/.env`:
+## Screenshots
 
-```
-SUPABASE_URL=
-SUPABASE_KEY=
-COHERE_API_KEY=
-GROQ_API_KEY=
+| Employee: restricted view and refusal | HR: access to confidential content |
+|---|---|
+| ![Employee view](docs/screenshots/02-employee-restricted.png) | ![HR view](docs/screenshots/03-hr-access.png) |
+
+| Document management | Manager upload limits |
+|---|---|
+| ![Document management](docs/screenshots/04-document-management.png) | ![Manager limits](docs/screenshots/05-manager-limits.png) |
+
+## Roles and permissions
+
+| Role | Can ask questions about | Can upload | Can delete or change access |
+|---|---|---|---|
+| Employee | Employee-level documents | No | No |
+| Manager | Employee and manager documents | Yes, shared with employee and/or manager only | Only their own uploads |
+| HR | Employee, manager and HR documents | Yes | All documents |
+| Admin | Everything | Yes | All documents |
+
+A user can never share a document with a level above what they can read. HR and admin access is always added automatically.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    U["User browser"] --> FE["Next.js frontend (Vercel)"]
+    FE -->|"sign in"| AUTH["Supabase Auth"]
+    FE -->|"JWT + requests"| API["FastAPI backend (Render)"]
+    API --> DB[("Postgres + pgvector")]
+    API --> ST[("Storage: original PDFs")]
+    API --> EMB["Cohere embeddings"]
+    API --> LLM["Groq LLM"]
 ```
 
-Install and run the backend from the repository root:
+**Ingestion (when a document is uploaded)**
+
+1. Check the uploader's role and the roles they chose to share with
+2. Extract text page by page with PyMuPDF, keeping page numbers
+3. Split into overlapping, sentence-aware chunks
+4. Embed each chunk and generate suggested questions it can answer
+5. Store chunks, vectors, page numbers, role tags and suggested questions; keep the original PDF in storage
+
+**Question answering**
+
+1. Look up which documents the user's role may read
+2. Embed the question, then run vector search and keyword search over only those documents
+3. Merge and re-score the results; refuse if the best match is below the confidence threshold
+4. Ask the LLM to answer using only the retrieved passages
+5. Return the answer with citations, then store it in the role-scoped cache
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js, React, TypeScript |
+| Backend | FastAPI (Python 3.13) |
+| Database, auth, storage | Supabase (Postgres, pgvector, Auth, Storage) |
+| Embeddings | Cohere |
+| LLM | Groq |
+| PDF parsing | PyMuPDF |
+| Hosting | Vercel (frontend), Render (backend) |
+
+## Security notes
+
+- Retrieval is filtered by role before any passage is sent to the language model
+- Upload, delete and access-change endpoints check the caller's role on the server
+- Cached answers are keyed by tenant and role
+- Secrets live only in environment variables; `.env` files are git-ignored and only `.env.example` templates are committed
+- The Supabase service key is used only by the backend
+- Row-level security is enabled on every table, with no direct-access policies, so only the backend can read data
+- The PDF storage bucket is private; files are served through short-lived signed links
+- Search functions run with the caller's rights, so database rules still apply to them
+- Uploads are limited to PDFs up to 20 MB, and uploads and questions are rate limited per user
+- Public sign-ups are disabled on the demo deployment
+
+## Run it locally
+
+**Prerequisites:** Python 3.13, Node.js 20+, a Supabase project, and API keys for Cohere and Groq.
 
 ```bash
-pip install -r backend/requirements.txt
-uvicorn backend.main:app --reload
+git clone https://github.com/vaishali16-maker/Enterprise-RAG-Assistant.git
+cd Enterprise-RAG-Assistant
 ```
 
-Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in
-`frontend/.env.local`. `NEXT_PUBLIC_API_URL` is optional; when omitted, the
-frontend connects to the local backend above. Then start the frontend in a
-second terminal:
+**Backend** (run from the repository root)
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
+pip install -r backend/requirements.txt
+copy backend\.env.example backend\.env      # then fill in your values
+uvicorn backend.main:app --reload --port 8000
+```
+
+**Frontend**
 
 ```bash
 cd frontend
 npm install
+copy .env.example .env.local    # then fill in your values
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). If the API URL changes,
-restart the Next.js dev server so it picks up the updated environment.
+Open http://localhost:3000.
 
-To enable persistent answer feedback, run
-`backend/migrations/20261031_message_feedback.sql` once in the Supabase SQL
-Editor for the project used by `backend/.env`.
+**Database:** run the SQL files in `backend/migrations/` in date order in the Supabase SQL editor. Create users in Supabase Auth, then add a matching row in the `profiles` table with the user's `id`, `tenant_id` and `role` (`employee`, `manager`, `hr` or `admin`).
+
+**Tests**
+
+```bash
+pip install pytest
+python -m pytest backend/tests -q
+```
+
+The suite has 14 backend tests covering upload permissions, ownership rules, file validation and rate limiting.
+
+## Known limitations
+
+- Scanned (image-only) PDFs are not supported because there is no OCR step yet
+- The free hosting tier sleeps after inactivity, so the first request can be slow
+- The full base database schema is not yet exported; the migrations here are incremental
+- Answer quality has been checked by hand across all four roles, but there is no automated evaluation set yet
+- The low-confidence refusal is applied by the chat endpoint the app uses; the standalone `/ask`, `/ask/stream` and `/ask/agent` endpoints are still role-scoped but do not refuse weak matches yet
+- Rate limits are kept in memory, so they reset on restart and are per instance
+- Uploads, graph extraction and audit logging are not wrapped in a single transaction, so a failure part-way can leave partial state
+- The document graph view is experimental
+
+## Roadmap
+
+- Automated evaluation set with accuracy and access-control pass rates
+- Apply the same confidence check to every answer endpoint
+- Admin dashboard (top questions, feedback ratio, unanswered questions)
+- OCR for scanned PDFs
+- Exported base schema and a one-command local setup
+- Cleaner knowledge-graph visualisation
