@@ -134,7 +134,9 @@ npm run dev
 
 Open http://localhost:3000.
 
-**Database:** run the SQL files in `backend/migrations/` in date order in the Supabase SQL editor. Create users in Supabase Auth, then add a matching row in the `profiles` table with the user's `id`, `tenant_id` and `role` (`employee`, `manager`, `hr` or `admin`).
+**Database:** in a new Supabase project, open the SQL editor and run `backend/schema.sql` once. It creates the tables, indexes, search functions, security settings and the private `documents` storage bucket, and adds a trigger that gives every new user an employee profile in a "Demo Company" tenant. The files in `backend/migrations/` are the incremental history and are already included in `schema.sql`, so a new project does not need them.
+
+Then create users in Supabase Auth and promote them by updating `profiles.role` (`employee`, `manager`, `hr` or `admin`). Put the id of the "Demo Company" row from the `tenants` table into `DEFAULT_TENANT_ID` (used by the command-line helper scripts).
 
 **Tests**
 
@@ -149,7 +151,6 @@ The suite has 14 backend tests covering upload permissions, ownership rules, fil
 
 - Scanned (image-only) PDFs are not supported because there is no OCR step yet
 - The free hosting tier sleeps after inactivity, so the first request can be slow
-- The full base database schema is not yet exported; the migrations here are incremental
 - Answer quality has been checked by hand across all four roles, but there is no automated evaluation set yet
 - The low-confidence refusal is applied by the chat endpoint the app uses; the standalone `/ask`, `/ask/stream` and `/ask/agent` endpoints are still role-scoped but do not refuse weak matches yet
 - Rate limits are kept in memory, so they reset on restart and are per instance
@@ -162,5 +163,5 @@ The suite has 14 backend tests covering upload permissions, ownership rules, fil
 - Apply the same confidence check to every answer endpoint
 - Admin dashboard (top questions, feedback ratio, unanswered questions)
 - OCR for scanned PDFs
-- Exported base schema and a one-command local setup
+- One-command local setup (Docker)
 - Cleaner knowledge-graph visualisation
