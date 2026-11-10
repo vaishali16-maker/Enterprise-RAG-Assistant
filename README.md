@@ -104,6 +104,18 @@ flowchart LR
 - Uploads are limited to PDFs up to 20 MB, and uploads and questions are rate limited per user
 - Public sign-ups are disabled on the demo deployment
 
+## Evaluation
+
+A script (`backend/scripts/evaluate.py`) signs in as each demo role and asks 31 questions through the chat API. Latest run:
+
+| Check | Result |
+|---|---|
+| Answer accuracy (right fact in the answer) | 17 / 17 |
+| Access control (no restricted content in any response) | 10 / 10 |
+| Unanswerable questions refused | 4 / 4 |
+
+Per-question results are in [`docs/evaluation_results.md`](docs/evaluation_results.md). The test set is small and uses the demo documents in this repository, so treat it as a regression check, not a benchmark.
+
 ## Run it locally
 
 **Prerequisites:** Python 3.13, Node.js 20+, a Supabase project, and API keys for Cohere and Groq.
