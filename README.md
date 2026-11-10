@@ -163,7 +163,7 @@ The suite has 14 backend tests covering upload permissions, ownership rules, fil
 
 - Scanned (image-only) PDFs are not supported because there is no OCR step yet
 - The free hosting tier sleeps after inactivity, so the first request can be slow
-- Answer quality has been checked by hand across all four roles, but there is no automated evaluation set yet
+- The evaluation set is small (31 questions on the demo documents), so it is a regression check, not a benchmark
 - The low-confidence refusal is applied by the chat endpoint the app uses; the standalone `/ask`, `/ask/stream` and `/ask/agent` endpoints are still role-scoped but do not refuse weak matches yet
 - Rate limits are kept in memory, so they reset on restart and are per instance
 - Uploads, graph extraction and audit logging are not wrapped in a single transaction, so a failure part-way can leave partial state
@@ -171,7 +171,7 @@ The suite has 14 backend tests covering upload permissions, ownership rules, fil
 
 ## Roadmap
 
-- Automated evaluation set with accuracy and access-control pass rates
+- Larger evaluation set covering more document types and question styles
 - Apply the same confidence check to every answer endpoint
 - Admin dashboard (top questions, feedback ratio, unanswered questions)
 - OCR for scanned PDFs
