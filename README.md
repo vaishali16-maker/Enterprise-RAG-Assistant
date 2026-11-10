@@ -159,16 +159,14 @@ python -m pytest backend/tests -q
 
 The suite has 14 backend tests covering upload permissions, ownership rules, file validation and rate limiting.
 
-## Known limitations
+## Scope and limitations
 
-- Scanned (image-only) PDFs are not supported because there is no OCR step yet
-- The free hosting tier sleeps after inactivity, so the first request can be slow
-- The evaluation set is small (31 questions on the demo documents), so it is a regression check, not a benchmark
-- The low-confidence refusal is applied by the chat endpoint the app uses; the standalone `/ask`, `/ask/stream` and `/ask/agent` endpoints are still role-scoped but do not refuse weak matches yet
-- Rate limits are kept in memory, so they reset on restart and are per instance
-- Uploads, graph extraction and audit logging are not wrapped in a single transaction, so a failure part-way can leave partial state
-- The document graph view is experimental
-
+- Works with text-based PDFs; scanned (image-only) files need an OCR step, which is on the roadmap
+- The demo runs on free hosting, so the first request after a period of inactivity can take about a minute
+- The evaluation set is small (31 questions on the demo documents): a regression check, not a benchmark
+- The standalone `/ask`, `/ask/stream` and `/ask/agent` endpoints are role-scoped but do not yet apply the low-confidence refusal that the chat endpoint uses
+- Rate limits are held in memory per instance, which suits a single server; a shared store would be the next step for scaling out
+- Uploads are not wrapped in one database transaction, so a failure part-way through graph extraction or storage can leave a partial record
 ## Roadmap
 
 - Larger evaluation set covering more document types and question styles
