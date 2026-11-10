@@ -2,7 +2,8 @@
 
 A role-based knowledge assistant for companies. Staff upload internal PDFs, and employees ask questions in plain English. Every answer is built **only from documents the signed-in user is allowed to see**, and cites the exact document and page it came from. When the documents don't contain a good answer, the assistant says so instead of guessing.
 
-**Live demo:** https://enterprise-rag-assistant-xi.vercel.app
+**Live demo:** https://enterprise-rag-assistant-xi.vercel.app 
+**Demo Video Link** https://drive.google.com/file/d/1rJ8I1QczT9f9A3M9G7_pn0LWsrozsyJY/view?usp=sharing
 
 > The backend runs on a free Render instance, so the first request after a period of inactivity can take about a minute while it wakes up.
 
